@@ -20,15 +20,28 @@ def send_chat_messages():
                 'userName': str(userName),
                 'userAddress': (host, port)
             },
-            'message': str(message)
+            'message': str(userName) + ": " + str(message),
+            'roomId': str(roomId)
         }
         s.sendto(str(req).encode('utf-8'), server)
+
+def sendJoiningMessage():
+    req = {
+        'request_type': 'chat',
+        'userDetails': {
+            'userName': str(userName),
+            'userAddress': (host, port)
+        },
+        'message': str(userName) + " just joined the room",
+        'roomId': str(roomId)
+    }
+    s.sendto(str(req).encode('utf-8'), server)
+    
 
 def receive_message():
     while True:
         message, address = s.recvfrom(1024)
         message = ast.literal_eval(message.decode('utf-8'))
-        print(message)
         if message['response_type'] == 'question':
             requestResponse(message)
         else:
@@ -36,6 +49,7 @@ def receive_message():
 
 chatThread = threading.Thread(target=send_chat_messages)
 inChatRoom = False
+roomId = ''
 
 host = '127.0.0.1'
 port = 4005
@@ -62,17 +76,24 @@ def roomCreateResponse(message):
     if message['error']:
         print(message['message'])
     else:
+        global inChatRoom
+        inChatRoom = True
+        global roomId
+        roomId = message['roomId']
         print(message['message'])
         chatThread.start()
-        inChatRoom = True
+
 
 def joinRoomResponse(message):
     if message['error']:
         print(message['message'])
     else:
+        global inChatRoom
+        inChatRoom = True
+        global roomId
+        roomId = message['roomId']
         print(message['message'])
         chatThread.start()
-        inChatRoom = True
 
 def send_question_messages(req):
     s.sendto(str(req).encode('utf-8'), server)

@@ -66,7 +66,7 @@ def roomCreateResponse(message, address):
             'option': '2',
             'error': False,
             'message': '\nRoom Created And Joined\n',
-            'roomId': roomId
+            'roomId': str(roomId)
         }
         sendResponse(res, address)
 
@@ -82,7 +82,8 @@ def joinRoomResponse(message, address):
             'response_type': 'question',
             'option': '3',
             'error': False,
-            'message': '\nRoom Created And Joined\n'
+            'message': '\nRoom Created And Joined\n',
+            'roomId': str(roomId)
         }
         sendResponse(res, address)
     else:
@@ -103,7 +104,15 @@ def giveResponse(message, address):
         joinRoomResponse(message, address)
 
 def broadcastToRoom(message, address):
-    pass
+    roomMembers = myServer.getRoomMembers(message['roomId'])
+    for member in roomMembers:
+        if member['userAddress'] == address:
+            continue
+        res = {
+            'response_type': 'chat',
+            'message': message['message']
+        }
+        sendResponse(res, member['userAddress'])
 
 def roomExists(roomId):
     allRooms = myServer.getAllRooms()
