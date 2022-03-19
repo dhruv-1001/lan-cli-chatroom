@@ -1,8 +1,5 @@
 import socket
-import threading
-from tokenize import String
-from venv import create
-
+import ast
 
 class Server:
 
@@ -12,14 +9,18 @@ class Server:
 
     # This function adds a new room with unique id to chatRooms
     # and also creates roomId-members key-value pair with the user who created this room
-    def createRoom(self, roomId, userDetails):
-        self.chatRooms.append(roomId)
+    def createRoom(self, roomId, roomName, userDetails):
+        room = {
+            'roomId': roomId,
+            'roomName': roomName
+        }
+        self.chatRooms.append(room)
         self.roomMembersDict[roomId] = [userDetails]
 
     # This function is called whenever a user joins a room
     # and appends new user details to roomMembersDict[roomId]
     # where roomId is the room joined by the user
-    def addUserToRoom(self, roomId, userDetails):
+    def joinRoom(self, roomId, userDetails):
         self.roomMembersDict[roomId].append(userDetails)
 
     # return all rooms
@@ -30,37 +31,104 @@ class Server:
     def getRoomMembers(self, roomId):
         return self.roomMembersDict[roomId]
 
-myServer = Server()
-while True:
-    print("1     -> Create Room")
-    print("2     -> Add Member To Room")
-    print("3     -> Get all rooms Id")
-    print("4     -> Get room members")
-    print("Other -> Exit")
-    choice = input()
-    if (choice == '1'):
-        print('Enter Room Id: ', end="")
-        roomId = input()
-        print('Enter User Id: ', end="")
-        userId = input()
-        myServer.createRoom(roomId, userId)
-        print(f"Room Created with Id {roomId} and first user {userId}")
-    elif (choice == '2'):
-        print('Enter Room Id: ', end="")
-        roomId = input()
-        print('Enter User Id: ', end="")
-        userId = input()
-        myServer.addUserToRoom(roomId, userId)
-        print(f"User {userId} added to room {roomId}")
-    elif (choice == '3'):
-        print(myServer.getAllRooms())
-    elif (choice == '4'):
-        print('Enter Room Id: ', end="")
-        roomId = input()
-        allRooms = myServer.getAllRooms()
-        if not allRooms.__contains__(roomId):
-            print(f"No room found with {roomId} ID")
-        else:
-            print(myServer.getRoomMembers(roomId))
+# this function send data to the client which asked for room data
+
+def sendResponse(res, address):
+    s.sendto(str(res).encode('utf-8'), address)
+
+def allRoomResponse(address):
+    res = {
+        'response_type': 'question',
+        'option': '1',
+        'error': False,
+        'allRooms': myServer.getAllRooms()
+    }
+    sendResponse(res, address)
+
+def roomCreateResponse(message, address):
+    roomId = message['roomId']
+    if roomExists(roomId):
+        res = {
+            'response_type': 'question',
+            'option': '2',
+            'error': True,
+            'message': '\nRoom with given Id already exists\n'
+        }
+        sendResponse(res, address)
     else:
-        break
+        myServer.createRoom(
+            message['roomId'],
+            message['roomName'],
+            message['userDetails']
+        )
+        res = {
+            'response_type': 'question',
+            'option': '2',
+            'error': False,
+            'message': '\nRoom Created And Joined\n',
+            'roomId': roomId
+        }
+        sendResponse(res, address)
+
+def joinRoomResponse(message, address):
+    print("Joining room")
+    roomId = message['roomId']
+    if roomExists(roomId):
+        myServer.joinRoom(
+            message['roomId'],
+            message['userDetails']
+        )
+        res = {
+            'response_type': 'question',
+            'option': '3',
+            'error': False,
+            'message': '\nRoom Created And Joined\n'
+        }
+        sendResponse(res, address)
+    else:
+        res = {
+            'response_type': 'question',
+            'option': '3',
+            'error': True,
+            'message': '\nNo room with given Id\n'
+        }
+        sendResponse(res, address)
+
+def giveResponse(message, address):
+    if message['option'] == '1':
+        allRoomResponse(address)
+    elif message['option'] == '2':
+        roomCreateResponse(message, address)
+    else:
+        joinRoomResponse(message, address)
+
+def broadcastToRoom(message, address):
+    pass
+
+def roomExists(roomId):
+    allRooms = myServer.getAllRooms()
+    for x in allRooms:
+        if x['roomId'] == roomId:
+            return True
+    return False
+
+myServer = Server()
+host = '127.0.0.1'
+port = 4000
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.bind((host, port))
+
+
+
+def listenUpdates():
+    message, address = s.recvfrom(1024)
+    message = ast.literal_eval(message.decode('utf-8'))
+    print(message)
+    if (message['request_type'] == 'question'):
+        giveResponse(message, address)
+    else:
+        broadcastToRoom(message, address)
+
+while True:
+    listenUpdates()
