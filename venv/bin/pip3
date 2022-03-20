@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Users/dhruvbaliyan/Desktop/Learning Stuff/python-cli-chatroom/venv/bin/python3" "$0" "$@"
+'''exec' "/Users/dhruvbaliyan/Desktop/Learning Stuff/python-cli-chatroom/venv/bin/python" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re
